@@ -40,7 +40,7 @@ function setup() {
 function resetAdmin(phone) {
   var p = normPhone(phone);
   var admins = readRows('admins');
-  var admin = admins.filter(function (a) { return a.phone === p; })[0];
+  var admin = admins.filter(function (a) { return samePhone(a.phone, p); })[0];
   if (!admin) throw new Error('No admin with phone ' + p);
 
   var secret = String(Math.floor(1000 + Math.random() * 9000));
@@ -53,6 +53,41 @@ function resetAdmin(phone) {
 
   Logger.log('New admin secret for %s: %s', p, secret);
   return secret;
+}
+
+/* ---------- recovery helpers (run from the Apps Script editor) ---------- */
+
+// Prints what is actually stored, without exposing secrets.
+function diagnose() {
+  var admins = readRows('admins');
+  Logger.log('Admins: %s', admins.length);
+  admins.forEach(function (a) {
+    Logger.log('  name=%s phone=%s type=%s failed=%s lockedUntil=%s',
+      a.name, a.phone, typeof a.phone, a.failed, a.lockedUntil);
+  });
+
+  var users = readRows('users');
+  Logger.log('Users: %s', users.length);
+  users.forEach(function (u) {
+    Logger.log('  name=%s phone=%s type=%s active=%s',
+      u.name, u.phone, typeof u.phone, u.active);
+  });
+
+  var groups = readRows('groups');
+  Logger.log('Groups: %s', groups.length);
+  groups.forEach(function (g) {
+    Logger.log('  name=%s code=%s type=%s', g.name, g.code, typeof g.code);
+  });
+}
+
+// Clears failed-attempt counters and the 15-minute lockout. Keeps the secret.
+function unlockAdmin() {
+  readRows('admins').forEach(function (admin) {
+    admin.failed = 0;
+    admin.lockedUntil = 0;
+    updateObj('admins', admin._row, admin);
+  });
+  Logger.log('Admin lockout cleared.');
 }
 
 /* ---------- web entry ---------- */
@@ -132,7 +167,7 @@ function adminSetup(body) {
 }
 
 function verifyAdmin(phone, secret) {
-  var admin = readRows('admins').filter(function (a) { return a.phone === phone; })[0];
+  var admin = readRows('admins').filter(function (a) { return samePhone(a.phone, phone); })[0];
   if (!admin) throw new Error('Wrong phone or secret.');
   if (Number(admin.lockedUntil || 0) > Date.now()) {
     throw new Error('Too many attempts. Try again in 15 minutes.');
@@ -161,7 +196,7 @@ function adminLogin(body) {
   var phone = requirePhone(body.phone);
   var secret = String(body.secret || '').trim();
   var admin = verifyAdmin(phone, secret);
-  return json({ ok: true, admin: { adminId: admin.adminId, phone: admin.phone, name: admin.name } });
+  return json({ ok: true, admin: { adminId: admin.adminId, phone: normPhone(admin.phone), name: admin.name } });
 }
 
 function requireAdmin(body) {
@@ -174,7 +209,7 @@ function adminData(body) {
   requireAdmin(body);
 
   var users = readRows('users').map(function (u) {
-    return { userId: u.userId, phone: u.phone, name: u.name, active: Number(u.active) || 0 };
+    return { userId: u.userId, phone: normPhone(u.phone), name: u.name, active: Number(u.active) || 0 };
   }).sort(function (a, b) { return a.name.localeCompare(b.name); });
 
   var groups = readRows('groups').map(publicGroup)
@@ -192,7 +227,7 @@ function adminAddUser(body) {
   var name = cleanName(body.name);
   var phone = requirePhone(body.newPhone);
 
-  if (readRows('users').some(function (u) { return u.phone === phone; })) {
+  if (readRows('users').some(function (u) { return samePhone(u.phone, phone); })) {
     throw new Error('That phone is already registered.');
   }
 
@@ -217,18 +252,18 @@ function adminEditUser(body) {
   var name = cleanName(body.name);
   var phone = requirePhone(body.newPhone);
 
-  if (users.some(function (u) { return u.phone === phone && u.userId !== user.userId; })) {
+  if (users.some(function (u) { return samePhone(u.phone, phone) && u.userId !== user.userId; })) {
     throw new Error('That phone is already registered.');
   }
 
-  var oldPhone = user.phone;
+  var oldPhone = normPhone(user.phone);
   user.name = name;
   user.phone = phone;
   updateObj('users', user._row, user);
 
   // Keep admin login in sync if this person is also an admin.
   readRows('admins').forEach(function (admin) {
-    if (admin.phone === oldPhone) {
+    if (samePhone(admin.phone, oldPhone)) {
       admin.phone = phone;
       admin.name = name;
       updateObj('admins', admin._row, admin);
@@ -283,7 +318,7 @@ function adminAddMember(body) {
 
   var phone = requirePhone(body.userPhone);
   var user = readRows('users').filter(function (u) {
-    return u.phone === phone && Number(u.active) !== 0;
+    return samePhone(u.phone, phone) && Number(u.active) !== 0;
   })[0];
   if (!user) throw new Error('No active person with that phone. Create them first.');
 
@@ -340,7 +375,7 @@ function login(body) {
 
   return json({
     ok: true,
-    user: { userId: user.userId, phone: user.phone, name: user.name },
+    user: { userId: user.userId, phone: normPhone(user.phone), name: user.name },
     groups: mine.map(publicGroup)
   });
 }
@@ -627,34 +662,42 @@ function readRows(name) {
   return rows;
 }
 
-function appendObj(name, obj) {
+function writeRow(name, rowNumber, obj) {
   var headers = TABS[name];
-  sheet(name).appendRow(headers.map(function (header) {
+  var target = sheet(name).getRange(rowNumber, 1, 1, headers.length);
+
+  // Force text format for identifier columns before writing. Without this,
+  // Sheets stores "9876543210" and "1234" as numbers.
+  headers.forEach(function (header, index) {
+    if (header === 'phone' || header === 'code') {
+      target.getCell(1, index + 1).setNumberFormat('@');
+    }
+  });
+
+  target.setValues([headers.map(function (header) {
     var value = obj[header];
     return value === undefined || value === null ? '' : value;
-  }));
+  })]);
+}
+
+function appendObj(name, obj) {
+  writeRow(name, sheet(name).getLastRow() + 1, obj);
 }
 
 function updateObj(name, rowNumber, obj) {
-  var headers = TABS[name];
-  sheet(name).getRange(rowNumber, 1, 1, headers.length).setValues([
-    headers.map(function (header) {
-      var value = obj[header];
-      return value === undefined || value === null ? '' : value;
-    })
-  ]);
+  writeRow(name, rowNumber, obj);
 }
 
 /* ---------- utilities ---------- */
 
 function activeUser(phone) {
   return readRows('users').filter(function (user) {
-    return user.phone === phone && Number(user.active) !== 0;
+    return samePhone(user.phone, phone) && Number(user.active) !== 0;
   })[0];
 }
 
 function ensureUser(phone, name) {
-  var existing = readRows('users').filter(function (user) { return user.phone === phone; })[0];
+  var existing = readRows('users').filter(function (user) { return samePhone(user.phone, phone); })[0];
   if (existing) return existing;
 
   var user = {
@@ -688,6 +731,13 @@ function cleanName(value) {
 function normPhone(value) {
   var digits = String(value == null ? '' : value).replace(/\D/g, '');
   return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+// Sheets turns a numeric-looking phone into a number, so never use === on
+// raw cell values. Compare normalized strings instead.
+function samePhone(a, b) {
+  var left = normPhone(a);
+  return left !== '' && left === normPhone(b);
 }
 
 function requirePhone(value) {
