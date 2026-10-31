@@ -489,12 +489,13 @@
         '<section class="card hero">' +
           '<div class="muted small">Your balance</div>' +
           '<div class="hero-amt ' + (my > 0 ? 'pos' : my < 0 ? 'neg' : '') + '">' +
-            (my === 0 ? 'Settled up' : my > 0 ? 'You are owed ' + money(my) : 'You owe ' + money(-my)) +
+            (my === 0 ? 'All settled up' : my > 0 ? 'You get back ' + money(my) : 'You need to pay ' + money(-my)) +
           '</div>' +
           '<div class="muted small">Total spent ' + money(total) + ' · ' + activeCount + ' members</div>' +
         '</section>' +
         settleBlock +
-        '<section class="card"><h3>Members</h3>' + memberRows + '</section>' +
+        '<section class="card"><div class="card-head"><h3>Members</h3>' +
+          '<span class="muted small">+ gets back · − pays</span></div>' + memberRows + '</section>' +
         '<section>' +
           '<div class="card-head"><h3>Expenses</h3><span class="muted small">' + list.length + '</span></div>' +
           (expenseRows ? '<div class="list card tight">' + expenseRows + '</div>' :
