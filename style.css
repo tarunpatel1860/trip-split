@@ -224,6 +224,15 @@ button:disabled { opacity: .55; cursor: default; }
   color: var(--text);
 }
 .row:last-child { border-bottom: 0; }
+.date-head {
+  padding: 12px 14px 4px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.date-head:first-child { padding-top: 8px; }
 .row:active { background: var(--accent-soft); }
 .row.static:active { background: none; }
 .row-title { display: block; font-weight: 600; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

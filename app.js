@@ -13,6 +13,9 @@
   var uid = Logic.uid;
   var today = Logic.today;
   var timeAgo = Logic.timeAgo;
+  var formatTime = Logic.formatTime;
+  var dateLabel = Logic.dateLabel;
+  var formatDateTime = Logic.formatDateTime;
   var normPhone = Logic.normPhone;
   var esc = Logic.esc;
   var initials = Logic.initials;
@@ -465,17 +468,24 @@
         '</span><span class="' + cls + '">' + label + '</span></div>';
     }).join('');
 
-    var expenseRows = list.map(function (e) {
+    var expenseRows = '';
+    var lastDate = null;
+    list.forEach(function (e) {
+      if (e.date !== lastDate) {
+        expenseRows += '<div class="date-head">' + esc(dateLabel(e.date)) + '</div>';
+        lastDate = e.date;
+      }
       var mine = (e.shares || []).filter(function (s) { return s.userId === state.user.userId; })[0];
       var share = mine ? mine.amountPaise : 0;
-      return '<button class="row" data-e="' + esc(e.id) + '">' +
+      var time = formatTime(e.createdAt);
+      expenseRows += '<button class="row" data-e="' + esc(e.id) + '">' +
         '<span class="avatar">' + esc(initials(e.note || 'E')) + '</span>' +
         '<span class="grow"><span class="row-title">' + esc(e.note || 'Expense') + '</span>' +
         '<span class="muted small">' + esc(nameOf(e.paidBy)) + ' paid ' + money(e.amountPaise) +
-        ' · ' + esc(e.date || '') + '</span></span>' +
+        (time ? ' · ' + esc(time) : '') + '</span></span>' +
         '<span class="row-amt">' + (share ? money(share) : '') + '</span>' +
       '</button>';
-    }).join('');
+    });
 
     app.innerHTML =
       '<header class="top">' +
@@ -775,7 +785,7 @@
       '<header class="top">' +
         '<button class="icon-btn" id="back" aria-label="Back">‹</button>' +
         '<div class="grow"><div class="title">' + esc(expense.note || 'Expense') + '</div>' +
-        '<div class="muted small">' + esc(expense.date) + '</div></div>' +
+        '<div class="muted small">' + esc(dateLabel(expense.date)) + '</div></div>' +
         '<span class="icon-btn spacer"></span>' +
       '</header>' +
       '<main class="wrap">' +
@@ -792,11 +802,11 @@
         '</section>' +
         '<section class="card">' +
           '<div class="line"><span class="muted small">Added</span><span>' +
-            new Date(expense.createdAt).toLocaleString('en-IN') + '</span></div>' +
+            esc(formatDateTime(expense.createdAt)) + '</span></div>' +
           (Number(expense.updatedAt) !== Number(expense.createdAt) ?
             '<div class="line"><span class="muted small">Last edited</span><span>' +
               esc(nameOf(expense.updatedBy)) + ' · ' +
-              new Date(expense.updatedAt).toLocaleString('en-IN') + '</span></div>' : '') +
+              esc(formatDateTime(expense.updatedAt)) + '</span></div>' : '') +
           (mine ? '<div class="line"><span class="muted small">Your share</span><strong>' +
             money(mine.amountPaise) + '</strong></div>' : '') +
         '</section>' +

@@ -117,11 +117,62 @@
     return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
   }
 
+  var IST = 'Asia/Kolkata';
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  var istFormat = new Intl.DateTimeFormat('en-GB', {
+    timeZone: IST,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  });
+
+  function istParts(ts) {
+    var parts = istFormat.formatToParts(new Date(Number(ts) || Date.now()));
+    var out = {};
+    parts.forEach(function (part) { out[part.type] = part.value; });
+    return {
+      year: out.year,
+      month: out.month,
+      day: out.day,
+      hour: Number(out.hour) % 24,
+      minute: Number(out.minute)
+    };
+  }
+
+  // YYYY-MM-DD in IST, regardless of the device timezone.
+  function istDateKey(ts) {
+    var p = istParts(ts);
+    return p.year + '-' + p.month + '-' + p.day;
+  }
+
   function today() {
-    var d = new Date();
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
+    return istDateKey(Date.now());
+  }
+
+  // "05:30PM"
+  function formatTime(ts) {
+    if (!Number(ts)) return '';
+    var p = istParts(ts);
+    var hour = p.hour % 12 || 12;
+    return String(hour).padStart(2, '0') + ':' +
+      String(p.minute).padStart(2, '0') + (p.hour < 12 ? 'AM' : 'PM');
+  }
+
+  // "Today", "Yesterday", "31 Oct 2026"
+  function dateLabel(dateStr) {
+    var text = String(dateStr || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return 'Undated';
+    if (text === istDateKey(Date.now())) return 'Today';
+    if (text === istDateKey(Date.now() - 86400000)) return 'Yesterday';
+    var bits = text.split('-');
+    var month = MONTHS[Number(bits[1]) - 1];
+    if (!month) return text;
+    return Number(bits[2]) + ' ' + month + ' ' + bits[0];
+  }
+
+  function formatDateTime(ts) {
+    if (!Number(ts)) return '';
+    return dateLabel(istDateKey(ts)) + ', ' + formatTime(ts);
   }
 
   function timeAgo(ts) {
@@ -162,6 +213,10 @@
     uid: uid,
     today: today,
     timeAgo: timeAgo,
+    istDateKey: istDateKey,
+    formatTime: formatTime,
+    dateLabel: dateLabel,
+    formatDateTime: formatDateTime,
     normPhone: normPhone,
     esc: esc,
     initials: initials
