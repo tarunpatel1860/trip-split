@@ -163,6 +163,8 @@ backend/appsscript.json Apps Script manifest
 
 **Changes not appearing on another phone** — tap the sync pill, or wait 15 seconds. Check the pill says `Synced`.
 
+**Expenses show as "Undated"** — an older backend stored the `date` column as a Sheets date value. Deploy the latest `Code.gs` (**Manage deployments → Edit → New version**), then run `fixDates()` once in the Apps Script editor. New entries are written as `YYYY-MM-DD` text and read back in IST.
+
 **Sheet is filling up** — each group reads all its rows on every sync. That is fine for a trip (hundreds of rows). For years of use, archive old groups.
 
 **Lost admin secret** — run `resetAdmin('your-phone')` in Apps Script and check the execution log.

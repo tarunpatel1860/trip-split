@@ -158,10 +158,23 @@
       String(p.minute).padStart(2, '0') + (p.hour < 12 ? 'AM' : 'PM');
   }
 
+  // Normalizes anything the backend may return into YYYY-MM-DD. Sheets used
+  // to turn date cells into Date objects, which arrive as ISO strings.
+  function dateKey(value) {
+    if (value instanceof Date) return istDateKey(value.getTime());
+    var text = String(value == null ? '' : value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(text)) {
+      var ts = Date.parse(text);
+      return Number.isFinite(ts) ? istDateKey(ts) : '';
+    }
+    return '';
+  }
+
   // "Today", "Yesterday", "31 Oct 2026"
   function dateLabel(dateStr) {
-    var text = String(dateStr || '');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return 'Undated';
+    var text = dateKey(dateStr);
+    if (!text) return 'Undated';
     if (text === istDateKey(Date.now())) return 'Today';
     if (text === istDateKey(Date.now() - 86400000)) return 'Yesterday';
     var bits = text.split('-');
@@ -214,6 +227,7 @@
     today: today,
     timeAgo: timeAgo,
     istDateKey: istDateKey,
+    dateKey: dateKey,
     formatTime: formatTime,
     dateLabel: dateLabel,
     formatDateTime: formatDateTime,

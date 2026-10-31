@@ -14,6 +14,7 @@
   var today = Logic.today;
   var timeAgo = Logic.timeAgo;
   var formatTime = Logic.formatTime;
+  var dateKey = Logic.dateKey;
   var dateLabel = Logic.dateLabel;
   var formatDateTime = Logic.formatDateTime;
   var normPhone = Logic.normPhone;
@@ -89,6 +90,10 @@
     g.expenses = g.expenses || [];
     g.settlements = g.settlements || [];
     g.members = g.members || [];
+    // Older caches may hold ISO date-times from Sheets. Normalize in memory so
+    // grouping, sorting and the edit form all use YYYY-MM-DD.
+    g.expenses.forEach(function (e) { e.date = dateKey(e.date); });
+    g.settlements.forEach(function (s) { s.date = dateKey(s.date); });
     return g;
   }
 
@@ -440,7 +445,7 @@
     var live = g.expenses.filter(function (e) { return !Number(e.deleted); });
     var total = live.reduce(function (sum, e) { return sum + (Number(e.amountPaise) || 0); }, 0);
     var list = live.slice().sort(function (a, b) {
-      return String(b.date || '').localeCompare(String(a.date || '')) ||
+      return dateKey(b.date).localeCompare(dateKey(a.date)) ||
         (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
     });
     var settle = suggestions(net);
@@ -471,9 +476,10 @@
     var expenseRows = '';
     var lastDate = null;
     list.forEach(function (e) {
-      if (e.date !== lastDate) {
-        expenseRows += '<div class="date-head">' + esc(dateLabel(e.date)) + '</div>';
-        lastDate = e.date;
+      var day = dateKey(e.date);
+      if (day !== lastDate) {
+        expenseRows += '<div class="date-head">' + esc(dateLabel(day)) + '</div>';
+        lastDate = day;
       }
       var mine = (e.shares || []).filter(function (s) { return s.userId === state.user.userId; })[0];
       var share = mine ? mine.amountPaise : 0;
@@ -585,7 +591,7 @@
                   (m.userId === me ? ' (you)' : '') + '</option>';
               }).join('') + '</select></div>' +
             '<div><label class="muted small" for="date">Date</label>' +
-              '<input id="date" type="date" value="' + esc(existing ? existing.date : today()) + '"></div>' +
+              '<input id="date" type="date" value="' + esc(existing ? dateKey(existing.date) : today()) + '"></div>' +
           '</div>' +
         '</section>' +
         '<section class="card">' +
@@ -705,7 +711,7 @@
 
       var note = $('#note').value.trim() || 'Expense';
       var paidBy = $('#paidBy').value;
-      var date = $('#date').value || today();
+      var date = dateKey($('#date').value) || today();
       var ids = members.map(function (m) { return m.userId; })
         .filter(function (id) { return draft.selected.has(id); });
 
@@ -903,7 +909,7 @@
       var fromUser = $('#from').value;
       var toUser = $('#to').value;
       var amountPaise = toPaise($('#amount').value);
-      var date = $('#date').value || today();
+      var date = dateKey($('#date').value) || today();
 
       if (fromUser === toUser) { errorBox.textContent = 'Pick two different people.'; return; }
       if (!amountPaise || amountPaise <= 0) { errorBox.textContent = 'Enter an amount greater than zero.'; return; }

@@ -30,6 +30,14 @@ function setup() {
       sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
       sheet.setFrozenRows(1);
     }
+
+    // Keep identifier and date columns as text. Otherwise Sheets turns
+    // "2026-10-31" into a date serial and phones/codes into numbers.
+    headers.forEach(function (header, index) {
+      if (header === 'phone' || header === 'code' || header === 'date') {
+        sheet.getRange(2, index + 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+      }
+    });
   });
 
   var first = ss.getSheetByName('Sheet1');
@@ -88,6 +96,20 @@ function unlockAdmin() {
     updateObj('admins', admin._row, admin);
   });
   Logger.log('Admin lockout cleared.');
+}
+
+// Rewrites existing expense/payment date cells as YYYY-MM-DD text. Run once
+// after upgrading if old rows still show as "Undated".
+function fixDates() {
+  ['expenses', 'settlements'].forEach(function (name) {
+    var rows = readRows(name);
+    rows.forEach(function (row) {
+      var rowNumber = row._row;
+      delete row._row;
+      writeRow(name, rowNumber, row);
+    });
+  });
+  Logger.log('Dates normalized to YYYY-MM-DD text.');
 }
 
 /* ---------- web entry ---------- */
@@ -656,26 +678,48 @@ function readRows(name) {
 
   for (var i = 0; i < values.length; i++) {
     var row = { _row: i + 2 };
-    for (var j = 0; j < headers.length; j++) row[headers[j]] = values[i][j];
+    for (var j = 0; j < headers.length; j++) {
+      var value = values[i][j];
+      if (headers[j] === 'date') value = normalizeDateCell(value);
+      row[headers[j]] = value;
+    }
     rows.push(row);
   }
   return rows;
+}
+
+// Sheets may return a real Date for a date cell. Format it in the script's
+// timezone so the calendar date the user typed round-trips unchanged.
+function normalizeDateCell(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  var text = String(value == null ? '' : value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  if (/^\d{4}-\d{2}-\d{2}T/.test(text)) {
+    var parsed = new Date(text);
+    if (!isNaN(parsed.getTime())) {
+      return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
+  }
+  return text;
 }
 
 function writeRow(name, rowNumber, obj) {
   var headers = TABS[name];
   var target = sheet(name).getRange(rowNumber, 1, 1, headers.length);
 
-  // Force text format for identifier columns before writing. Without this,
-  // Sheets stores "9876543210" and "1234" as numbers.
+  // Force text format for identifier and date columns before writing. Without
+  // this, Sheets stores "9876543210", "1234" and "2026-10-31" as numbers/dates.
   headers.forEach(function (header, index) {
-    if (header === 'phone' || header === 'code') {
+    if (header === 'phone' || header === 'code' || header === 'date') {
       target.getCell(1, index + 1).setNumberFormat('@');
     }
   });
 
   target.setValues([headers.map(function (header) {
     var value = obj[header];
+    if (header === 'date') value = normalizeDateCell(value);
     return value === undefined || value === null ? '' : value;
   })]);
 }
@@ -747,12 +791,12 @@ function requirePhone(value) {
 }
 
 function validDate(value) {
-  var text = String(value || '');
+  var text = normalizeDateCell(value);
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : today();
 }
 
 function today() {
-  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd');
 }
 
 function hashSecret(secret, salt) {
