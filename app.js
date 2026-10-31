@@ -47,6 +47,15 @@
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
+  // Date headers are uppercased by CSS, but the weekday reads better as "Thu".
+  function dateHead(day) {
+    var label = dateLabel(day);
+    var comma = label.indexOf(', ');
+    if (comma === -1) return esc(label);
+    return esc(label.slice(0, comma)) + ', <span class="wd">' +
+      esc(label.slice(comma + 2)) + '</span>';
+  }
+
   function api(payload) {
     var url = window.APP_CONFIG && window.APP_CONFIG.API_URL;
     if (!url || url.indexOf('PASTE') !== -1) {
@@ -478,7 +487,7 @@
     list.forEach(function (e) {
       var day = dateKey(e.date);
       if (day !== lastDate) {
-        expenseRows += '<div class="date-head">' + esc(dateLabel(day)) + '</div>';
+        expenseRows += '<div class="date-head">' + dateHead(day) + '</div>';
         lastDate = day;
       }
       var mine = (e.shares || []).filter(function (s) { return s.userId === state.user.userId; })[0];

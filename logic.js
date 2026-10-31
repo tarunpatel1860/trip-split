@@ -119,6 +119,7 @@
 
   var IST = 'Asia/Kolkata';
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   var istFormat = new Intl.DateTimeFormat('en-GB', {
     timeZone: IST,
@@ -171,21 +172,37 @@
     return '';
   }
 
-  // "Today", "Yesterday", "31 Oct 2026"
-  function dateLabel(dateStr) {
-    var text = dateKey(dateStr);
-    if (!text) return 'Undated';
-    if (text === istDateKey(Date.now())) return 'Today';
-    if (text === istDateKey(Date.now() - 86400000)) return 'Yesterday';
+  // "29 Oct 2026"
+  function shortDate(text) {
     var bits = text.split('-');
     var month = MONTHS[Number(bits[1]) - 1];
     if (!month) return text;
     return Number(bits[2]) + ' ' + month + ' ' + bits[0];
   }
 
+  // "Thu" for a YYYY-MM-DD calendar date, independent of the device timezone.
+  function weekday(text) {
+    var bits = text.split('-');
+    var date = new Date(Date.UTC(Number(bits[0]), Number(bits[1]) - 1, Number(bits[2])));
+    return isNaN(date.getTime()) ? '' : DAYS[date.getUTCDay()];
+  }
+
+  // "Today", "Yesterday", "29 Oct 2026, Thu"
+  function dateLabel(dateStr) {
+    var text = dateKey(dateStr);
+    if (!text) return 'Undated';
+    if (text === istDateKey(Date.now())) return 'Today';
+    if (text === istDateKey(Date.now() - 86400000)) return 'Yesterday';
+    var day = weekday(text);
+    return shortDate(text) + (day ? ', ' + day : '');
+  }
+
   function formatDateTime(ts) {
     if (!Number(ts)) return '';
-    return dateLabel(istDateKey(ts)) + ', ' + formatTime(ts);
+    var key = istDateKey(ts);
+    var label = key === istDateKey(Date.now()) ? 'Today' :
+      key === istDateKey(Date.now() - 86400000) ? 'Yesterday' : shortDate(key);
+    return label + ', ' + formatTime(ts);
   }
 
   function timeAgo(ts) {

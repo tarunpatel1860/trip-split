@@ -233,6 +233,7 @@ button:disabled { opacity: .55; cursor: default; }
   color: var(--muted);
 }
 .date-head:first-child { padding-top: 8px; }
+.date-head .wd { text-transform: none; }
 .row:active { background: var(--accent-soft); }
 .row.static:active { background: none; }
 .row-title { display: block; font-weight: 600; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
