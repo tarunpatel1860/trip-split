@@ -452,10 +452,15 @@
     var my = net.get(state.user.userId) || 0;
     var activeCount = members.filter(function (m) { return Number(m.active) !== 0; }).length;
     var live = g.expenses.filter(function (e) { return !Number(e.deleted); });
+    var liveSettlements = g.settlements.filter(function (s) { return !Number(s.deleted); });
     var total = live.reduce(function (sum, e) { return sum + (Number(e.amountPaise) || 0); }, 0);
-    var list = live.slice().sort(function (a, b) {
-      return dateKey(b.date).localeCompare(dateKey(a.date)) ||
-        (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
+    var activity = live.map(function (e) {
+      return { kind: 'expense', row: e };
+    }).concat(liveSettlements.map(function (s) {
+      return { kind: 'settlement', row: s };
+    })).sort(function (a, b) {
+      return dateKey(b.row.date).localeCompare(dateKey(a.row.date)) ||
+        (Number(b.row.createdAt) || 0) - (Number(a.row.createdAt) || 0);
     });
     var settle = suggestions(net);
 
@@ -482,21 +487,35 @@
         '</span><span class="' + cls + '">' + label + '</span></div>';
     }).join('');
 
-    var expenseRows = '';
+    var activityRows = '';
     var lastDate = null;
-    list.forEach(function (e) {
-      var day = dateKey(e.date);
+    activity.forEach(function (item) {
+      var row = item.row;
+      var day = dateKey(row.date);
       if (day !== lastDate) {
-        expenseRows += '<div class="date-head">' + dateHead(day) + '</div>';
+        activityRows += '<div class="date-head">' + dateHead(day) + '</div>';
         lastDate = day;
       }
-      var mine = (e.shares || []).filter(function (s) { return s.userId === state.user.userId; })[0];
+
+      var time = formatTime(row.createdAt);
+
+      if (item.kind === 'settlement') {
+        activityRows += '<div class="row static">' +
+          '<span class="avatar settle" aria-hidden="true">⇄</span>' +
+          '<span class="grow"><span class="row-title">' + esc(labelOf(row.fromUser)) +
+            ' paid ' + esc(labelOf(row.toUser)) + '</span>' +
+          '<span class="muted small">Settlement' + (time ? ' · ' + esc(time) : '') + '</span></span>' +
+          '<span class="row-amt">' + money(row.amountPaise) + '</span>' +
+        '</div>';
+        return;
+      }
+
+      var mine = (row.shares || []).filter(function (s) { return s.userId === state.user.userId; })[0];
       var share = mine ? mine.amountPaise : 0;
-      var time = formatTime(e.createdAt);
-      expenseRows += '<button class="row" data-e="' + esc(e.id) + '">' +
-        '<span class="avatar">' + esc(initials(e.note || 'E')) + '</span>' +
-        '<span class="grow"><span class="row-title">' + esc(e.note || 'Expense') + '</span>' +
-        '<span class="muted small">' + esc(nameOf(e.paidBy)) + ' paid ' + money(e.amountPaise) +
+      activityRows += '<button class="row" data-e="' + esc(row.id) + '">' +
+        '<span class="avatar">' + esc(initials(row.note || 'E')) + '</span>' +
+        '<span class="grow"><span class="row-title">' + esc(row.note || 'Expense') + '</span>' +
+        '<span class="muted small">' + esc(nameOf(row.paidBy)) + ' paid ' + money(row.amountPaise) +
         (time ? ' · ' + esc(time) : '') + '</span></span>' +
         '<span class="row-amt">' + (share ? money(share) : '') + '</span>' +
       '</button>';
@@ -522,9 +541,9 @@
         '<section class="card"><div class="card-head"><h3>Members</h3>' +
           '<span class="muted small">+ gets back · − pays</span></div>' + memberRows + '</section>' +
         '<section>' +
-          '<div class="card-head"><h3>Expenses</h3><span class="muted small">' + list.length + '</span></div>' +
-          (expenseRows ? '<div class="list card tight">' + expenseRows + '</div>' :
-            '<div class="empty card">No expenses yet.<br>Tap <strong>+</strong> to add the first one.</div>') +
+          '<div class="card-head"><h3>Expenses &amp; settlements</h3><span class="muted small">' + activity.length + '</span></div>' +
+          (activityRows ? '<div class="list card tight">' + activityRows + '</div>' :
+            '<div class="empty card">No expenses or settlements yet.<br>Tap <strong>+</strong> to add the first expense.</div>') +
         '</section>' +
         '<div class="pad-bottom"></div>' +
       '</main>' +

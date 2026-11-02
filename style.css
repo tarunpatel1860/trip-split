@@ -252,6 +252,7 @@ button:disabled { opacity: .55; cursor: default; }
   flex: 0 0 auto;
 }
 .avatar.sm { width: 30px; height: 30px; border-radius: 9px; font-size: .85rem; }
+.avatar.settle { background: var(--bg); color: var(--muted); border: 1px solid var(--line); font-size: 1.05rem; }
 
 .tag {
   display: inline-block;
