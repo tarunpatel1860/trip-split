@@ -1,5 +1,5 @@
 /* Tiny offline shell. Network-first so deploys show up; cache is the fallback. */
-var CACHE = 'trip-split-v2';
+var CACHE = 'trip-split-v3';
 var SHELL = [
   './',
   './index.html',
