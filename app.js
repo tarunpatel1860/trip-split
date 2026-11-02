@@ -500,7 +500,7 @@
       var time = formatTime(row.createdAt);
 
       if (item.kind === 'settlement') {
-        activityRows += '<div class="row static">' +
+        activityRows += '<div class="row static settle-row">' +
           '<span class="avatar settle" aria-hidden="true">⇄</span>' +
           '<span class="grow"><span class="row-title">' + esc(labelOf(row.fromUser)) +
             ' paid ' + esc(labelOf(row.toUser)) + '</span>' +

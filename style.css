@@ -252,7 +252,19 @@ button:disabled { opacity: .55; cursor: default; }
   flex: 0 0 auto;
 }
 .avatar.sm { width: 30px; height: 30px; border-radius: 9px; font-size: .85rem; }
-.avatar.settle { background: var(--bg); color: var(--muted); border: 1px solid var(--line); font-size: 1.05rem; }
+.avatar.settle {
+  background: var(--card);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  font-size: 1.05rem;
+}
+.row.settle-row {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent-soft) 70%, transparent),
+    transparent 72%);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.row.settle-row .row-amt { color: var(--accent); }
 
 .tag {
   display: inline-block;
