@@ -265,6 +265,7 @@ button:disabled { opacity: .55; cursor: default; }
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .row.settle-row .row-amt { color: var(--accent); }
+.row.settle-row:active { background: var(--accent-soft); }
 
 .tag {
   display: inline-block;

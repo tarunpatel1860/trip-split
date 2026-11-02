@@ -298,6 +298,7 @@
       if (parts[2] === 'add') return renderExpenseForm(parts[1], null);
       if (parts[2] === 'edit' && parts[3]) return renderExpenseForm(parts[1], parts[3]);
       if (parts[2] === 'e' && parts[3]) return renderExpenseDetail(parts[1], parts[3]);
+      if (parts[2] === 's' && parts[3]) return renderSettlementDetail(parts[1], parts[3]);
       if (parts[2] === 'settle') return renderSettle(parts[1]);
       return enterGroup(parts[1]);
     }
@@ -500,13 +501,13 @@
       var time = formatTime(row.createdAt);
 
       if (item.kind === 'settlement') {
-        activityRows += '<div class="row static settle-row">' +
+        activityRows += '<button class="row settle-row" data-s="' + esc(row.id) + '">' +
           '<span class="avatar settle" aria-hidden="true">⇄</span>' +
           '<span class="grow"><span class="row-title">' + esc(labelOf(row.fromUser)) +
             ' paid ' + esc(labelOf(row.toUser)) + '</span>' +
           '<span class="muted small">Settlement' + (time ? ' · ' + esc(time) : '') + '</span></span>' +
           '<span class="row-amt">' + money(row.amountPaise) + '</span>' +
-        '</div>';
+        '</button>';
         return;
       }
 
@@ -557,6 +558,9 @@
     };
     $$('[data-e]').forEach(function (el) {
       el.onclick = function () { go('/g/' + gid + '/e/' + el.getAttribute('data-e')); };
+    });
+    $$('[data-s]').forEach(function (el) {
+      el.onclick = function () { go('/g/' + gid + '/s/' + el.getAttribute('data-s')); };
     });
   }
 
@@ -864,6 +868,82 @@
       });
       g.expenses = mergeRows(g.expenses, [row]);
       g.dirty.expenses[row.id] = row;
+      saveGroupCache(g);
+      go('/g/' + gid);
+      syncGroup(gid).then(function () {
+        if (currentGid === gid && isHomeRoute()) renderHome(gid);
+      }).catch(function (err) { toast(err.message); });
+    };
+  }
+
+  function renderSettlementDetail(gid, settlementId) {
+    var g = loadGroupCache(gid);
+    if (!g) return go('/g/' + gid);
+
+    var settlement = g.settlements.filter(function (s) { return s.id === settlementId; })[0];
+    if (!settlement || Number(settlement.deleted)) return go('/g/' + gid);
+
+    var members = g.members || [];
+    function labelOf(id) {
+      var found = null;
+      for (var i = 0; i < members.length; i++) if (members[i].userId === id) found = members[i];
+      return (found ? found.name : 'Someone') +
+        (found && Number(found.active) === 0 ? ' (removed)' : '');
+    }
+
+    var me = state.user.userId;
+    var heroNote;
+    if (settlement.fromUser === me) {
+      heroNote = 'You paid ' + esc(labelOf(settlement.toUser));
+    } else if (settlement.toUser === me) {
+      heroNote = esc(labelOf(settlement.fromUser)) + ' paid you';
+    } else {
+      heroNote = esc(labelOf(settlement.fromUser)) + ' paid ' + esc(labelOf(settlement.toUser));
+    }
+
+    app.innerHTML =
+      '<header class="top">' +
+        '<button class="icon-btn" id="back" aria-label="Back">‹</button>' +
+        '<div class="grow"><div class="title">Settlement</div>' +
+        '<div class="muted small">' + esc(dateLabel(settlement.date)) + '</div></div>' +
+        '<span class="icon-btn spacer"></span>' +
+      '</header>' +
+      '<main class="wrap">' +
+        '<section class="card hero">' +
+          '<div class="hero-amt">' + money(settlement.amountPaise) + '</div>' +
+          '<div class="muted small">' + heroNote + '</div>' +
+        '</section>' +
+        '<section class="card">' +
+          '<div class="line"><span class="muted small">From</span><span>' +
+            esc(labelOf(settlement.fromUser)) + '</span></div>' +
+          '<div class="line"><span class="muted small">To</span><span>' +
+            esc(labelOf(settlement.toUser)) + '</span></div>' +
+          '<div class="line"><span class="muted small">Date</span><span>' +
+            esc(dateLabel(settlement.date)) + '</span></div>' +
+          '<div class="line"><span class="muted small">Recorded</span><span>' +
+            esc(formatDateTime(settlement.createdAt)) + '</span></div>' +
+          (Number(settlement.updatedAt) !== Number(settlement.createdAt) ?
+            '<div class="line"><span class="muted small">Last edited</span><span>' +
+              esc(labelOf(settlement.updatedBy)) + ' · ' +
+              esc(formatDateTime(settlement.updatedAt)) + '</span></div>' : '') +
+        '</section>' +
+        '<div class="actions">' +
+          '<button class="danger" id="del">Delete settlement</button>' +
+        '</div>' +
+      '</main>';
+
+    $('#back').onclick = function () { go('/g/' + gid); };
+
+    $('#del').onclick = function () {
+      if (!confirm('Delete this settlement for everyone?')) return;
+      var now = Math.max(Date.now(), (Number(settlement.updatedAt) || 0) + 1);
+      var row = Object.assign({}, settlement, {
+        deleted: 1,
+        updatedAt: now,
+        updatedBy: state.user.userId
+      });
+      g.settlements = mergeRows(g.settlements, [row]);
+      g.dirty.settlements[row.id] = row;
       saveGroupCache(g);
       go('/g/' + gid);
       syncGroup(gid).then(function () {
