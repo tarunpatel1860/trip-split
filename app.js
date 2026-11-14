@@ -43,6 +43,7 @@
   };
 
   var currentGid = null;
+  var activityFilter = { gid: null, payer: 'all' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -463,6 +464,40 @@
       return dateKey(b.row.date).localeCompare(dateKey(a.row.date)) ||
         (Number(b.row.createdAt) || 0) - (Number(a.row.createdAt) || 0);
     });
+
+    if (activityFilter.gid !== gid) activityFilter = { gid: gid, payer: 'all' };
+
+    var payerSet = {};
+    activity.forEach(function (item) {
+      var payer = item.kind === 'expense' ? item.row.paidBy : item.row.fromUser;
+      if (payer) payerSet[payer] = true;
+    });
+    var payerIds = members.map(function (m) { return m.userId; })
+      .filter(function (id) { return payerSet[id]; });
+    Object.keys(payerSet).forEach(function (id) {
+      if (payerIds.indexOf(id) === -1) payerIds.push(id);
+    });
+    if (payerIds.length < 2 ||
+        (activityFilter.payer !== 'all' && payerIds.indexOf(activityFilter.payer) === -1)) {
+      activityFilter.payer = 'all';
+    }
+
+    var shownActivity = activityFilter.payer === 'all' ? activity : activity.filter(function (item) {
+      var payer = item.kind === 'expense' ? item.row.paidBy : item.row.fromUser;
+      return payer === activityFilter.payer;
+    });
+
+    var filterBar = payerIds.length > 1 ?
+      '<div class="filter-bar" role="group" aria-label="Filter by payer">' +
+        '<button class="filter-chip' + (activityFilter.payer === 'all' ? ' active' : '') +
+          '" data-payer="all" aria-pressed="' + (activityFilter.payer === 'all') + '">All payers</button>' +
+        payerIds.map(function (id) {
+          return '<button class="filter-chip' + (activityFilter.payer === id ? ' active' : '') +
+            '" data-payer="' + esc(id) + '" aria-pressed="' + (activityFilter.payer === id) + '">' +
+            esc(labelOf(id)) + '</button>';
+        }).join('') +
+      '</div>' : '';
+
     var settle = suggestions(net);
 
     var settleBlock = settle.length ?
@@ -490,7 +525,7 @@
 
     var activityRows = '';
     var lastDate = null;
-    activity.forEach(function (item) {
+    shownActivity.forEach(function (item) {
       var row = item.row;
       var day = dateKey(row.date);
       if (day !== lastDate) {
@@ -542,9 +577,15 @@
         '<section class="card"><div class="card-head"><h3>Members</h3>' +
           '<span class="muted small">+ gets back · − pays</span></div>' + memberRows + '</section>' +
         '<section>' +
-          '<div class="card-head"><h3>Expenses &amp; settlements</h3><span class="muted small">' + activity.length + '</span></div>' +
+          '<div class="card-head"><h3>Expenses &amp; settlements</h3><span class="muted small">' +
+            (activityFilter.payer === 'all' ? activity.length : shownActivity.length + ' of ' + activity.length) +
+          '</span></div>' +
+          filterBar +
           (activityRows ? '<div class="list card tight">' + activityRows + '</div>' :
-            '<div class="empty card">No expenses or settlements yet.<br>Tap <strong>+</strong> to add the first expense.</div>') +
+            activity.length && activityFilter.payer !== 'all' ?
+              '<div class="empty card">Nothing paid by <strong>' +
+                esc(labelOf(activityFilter.payer)) + '</strong> yet.</div>' :
+              '<div class="empty card">No expenses or settlements yet.<br>Tap <strong>+</strong> to add the first expense.</div>') +
         '</section>' +
         '<div class="pad-bottom"></div>' +
       '</main>' +
@@ -561,6 +602,12 @@
     });
     $$('[data-s]').forEach(function (el) {
       el.onclick = function () { go('/g/' + gid + '/s/' + el.getAttribute('data-s')); };
+    });
+    $$('[data-payer]').forEach(function (el) {
+      el.onclick = function () {
+        activityFilter.payer = el.getAttribute('data-payer');
+        renderHome(gid);
+      };
     });
   }
 

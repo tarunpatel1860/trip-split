@@ -96,6 +96,7 @@ If you ever lose the secret: in Apps Script, run `resetAdmin('9876543210')` and 
 | Split exact | Toggle **Exact**, type each person's amount |
 | Edit / delete | Tap an expense |
 | Delete a payment | Tap a settlement in the activity list |
+| Filter activity | Tap a payer chip under **Expenses & settlements** |
 | Record a payment | **Record payment** under Settle up; it prefills the next suggested payment |
 | See balances | Group home |
 | Join a group | Enter the 4-digit code on the groups screen |
