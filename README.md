@@ -98,7 +98,7 @@ If you ever lose the secret: in Apps Script, run `resetAdmin('9876543210')` and 
 | Delete a payment | Tap a settlement in the activity list |
 | Filter activity | Tap a payer chip under **Expenses & settlements** |
 | Record a payment | **Record payment** under Settle up; it prefills the next suggested payment |
-| See balances | Group home |
+| See balances and totals | Group home summary shows group spend, your share, and what you paid |
 | Join a group | Enter the 4-digit code on the groups screen |
 | Work offline | Everything; the pill shows `Offline · N pending` |
 | Force sync | Tap the sync pill |

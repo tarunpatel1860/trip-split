@@ -456,6 +456,15 @@
     var live = g.expenses.filter(function (e) { return !Number(e.deleted); });
     var liveSettlements = g.settlements.filter(function (s) { return !Number(s.deleted); });
     var total = live.reduce(function (sum, e) { return sum + (Number(e.amountPaise) || 0); }, 0);
+    var myShare = 0;
+    var myPaid = 0;
+    live.forEach(function (e) {
+      var amount = Number(e.amountPaise) || 0;
+      if (e.paidBy === state.user.userId) myPaid += amount;
+      (e.shares || []).forEach(function (share) {
+        if (share.userId === state.user.userId) myShare += Number(share.amountPaise) || 0;
+      });
+    });
     var activity = live.map(function (e) {
       return { kind: 'expense', row: e };
     }).concat(liveSettlements.map(function (s) {
@@ -572,6 +581,8 @@
             (my === 0 ? 'All settled up' : my > 0 ? 'You get back ' + money(my) : 'You need to pay ' + money(-my)) +
           '</div>' +
           '<div class="muted small">Total spent ' + money(total) + ' · ' + activeCount + ' members</div>' +
+          '<div class="small">Your share <strong>' + money(myShare) + '</strong>' +
+            ' · You paid <strong>' + money(myPaid) + '</strong></div>' +
         '</section>' +
         settleBlock +
         '<section class="card"><div class="card-head"><h3>Members</h3>' +
