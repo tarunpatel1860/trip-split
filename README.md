@@ -78,7 +78,19 @@ window.APP_CONFIG = {
 
 No GitHub Actions, no build step. Every push is live.
 
-### 6. Create the admin
+### 6. Install as an app
+
+The site works in any browser, but installing gives a home-screen icon and full-screen, offline use.
+
+| Device | How |
+|---|---|
+| iPhone / iPad | **Safari** → **Share** → **Add to Home Screen** |
+| Android | **Chrome** → **⋮** → **Install app**, or the in-app **Install** button |
+| Desktop | The install icon in the Chrome/Edge address bar |
+
+> On iPhone, Chrome, Firefox, and Edge cannot install web apps. The app shows the Safari instructions when it detects one of those browsers.
+
+### 7. Create the admin
 
 1. Open `/admin/` **before sharing the app link**.
 2. Enter your name and phone → **Create admin**.
@@ -106,6 +118,18 @@ If you ever lose the secret: in Apps Script, run `resetAdmin('9876543210')` and 
 Editing an expense that was split equally reopens it in **Equally** mode, so changing the total rebalances it. An exact split reopens in **Exact** mode with its original amounts.
 
 Sync runs on open, after each change, every 15 seconds while the tab is visible, when the tab regains focus, and when the connection returns.
+
+## Releasing an update
+
+1. Change the files.
+2. Bump `CACHE` in `sw.js`, for example `trip-split-v5` → `trip-split-v6`.
+3. Push. The service worker updates, and open apps show **A new version of Trip Split is ready** with **Update** and **Later**.
+
+**Update** swaps in the new build and reloads once. **Later** keeps the prompt hidden until the app is reopened. The prompt is checked on launch, every minute while visible, and when the app returns to the foreground.
+
+Without the `CACHE` bump there is no new service worker, so nobody is prompted — although files still refresh on the next launch because the worker is network-first.
+
+Devices on a build older than this prompt (cache `v4` or earlier) cannot show it; fully close and reopen the app once after upgrading. On iPhone, the home-screen app may take an extra launch before it notices a release.
 
 ## Conflict rule
 
@@ -137,6 +161,9 @@ config.js               the one line you edit (Apps Script URL)
 sw.js                   offline cache
 manifest.webmanifest    installable app metadata
 icon.svg
+icon-192.png            home-screen icons
+icon-512.png
+apple-touch-icon.png    iOS home-screen icon
 admin/index.html        admin page
 admin/admin.js          admin screens
 backend/Code.gs         all backend actions
@@ -157,6 +184,8 @@ backend/appsscript.json Apps Script manifest
 
 **"Set the Apps Script URL in config.js first"** — `config.js` still has the placeholder, or the browser cached the old file. Hard-refresh.
 
+**No install prompt on iPhone** — iPhone never shows an automatic install prompt, and Chrome/Firefox on iOS cannot install web apps. Open the site in **Safari**, tap **Share**, then **Add to Home Screen**. The app shows these instructions on its own when it detects an iPhone browser.
+
 **"Missing tab ... Run setup()"** — run `setup()` in the Apps Script editor once.
 
 **Network error / CORS** — confirm the deployment is **Anyone** access and you copied the `/exec` URL. Re-deploy after changing `Code.gs` (**Deploy → Manage deployments → Edit → New version**).
@@ -164,6 +193,8 @@ backend/appsscript.json Apps Script manifest
 **"This number is not registered"** — the admin has not added that phone, or the person was deactivated.
 
 **Changes not appearing on another phone** — tap the sync pill, or wait 15 seconds. Check the pill says `Synced`.
+
+**App still shows an old build after a deploy** — open apps prompt **A new version of Trip Split is ready**; tap **Update**. If no prompt appears, the release did not bump `CACHE` in `sw.js`, or the app is still on a build from before the prompt existed — fully close and reopen it once.
 
 **Expenses show as "Undated"** — an older backend stored the `date` column as a Sheets date value. Deploy the latest `Code.gs` (**Manage deployments → Edit → New version**), then run `fixDates()` once in the Apps Script editor. New entries are written as `YYYY-MM-DD` text and read back in IST.
 
