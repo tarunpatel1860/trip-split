@@ -140,6 +140,17 @@ button:disabled { opacity: .55; cursor: default; }
 }
 .auth h1 { font-size: 1.75rem; }
 .auth p { margin-bottom: 22px; }
+.build-tag {
+  display: inline-block;
+  margin: -4px 0 14px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
 .stack { display: grid; gap: 10px; text-align: left; }
 .stack label { margin-bottom: -4px; }
 .stack .primary { margin-top: 6px; }
@@ -470,8 +481,6 @@ body.update-open .toast { bottom: calc(158px + env(safe-area-inset-bottom)); }
 
 .install-card { text-align: left; }
 .install-card p { margin-bottom: 10px; }
-.install-card .actions { margin-top: 10px; }
-.install-card .actions button { flex: 0 0 auto; }
 
 /* admin */
 
