@@ -35,6 +35,9 @@
     }
   };
 
+  /* Shown at the bottom of the login and groups screens. Keep in sync with CACHE in sw.js. */
+  var BUILD = 'v6';
+
   var state = {
     user: LS.get('ts_user', null),
     groups: LS.get('ts_groups', []),
@@ -324,7 +327,7 @@
           (message ? '<p class="err">' + esc(message) + '</p>' : '') +
         '</form>' +
         '<div id="installSlot">' + installCardHtml() + '</div>' +
-        '<p class="muted small center">Admin? <a href="admin/">Open admin</a></p>' +
+        '<p class="muted small center">Admin? <a href="admin/">Open admin</a> · Build ' + esc(BUILD) + '</p>' +
       '</div>';
 
     bindInstallCard();
@@ -383,7 +386,7 @@
         '</form>' +
         (message ? '<p class="err">' + esc(message) + '</p>' : '') +
         '<div id="installSlot">' + installCardHtml() + '</div>' +
-        '<p class="muted small center mt">Phone ' + esc(state.user.phone) + '</p>' +
+        '<p class="muted small center mt">Phone ' + esc(state.user.phone) + ' · Build ' + esc(BUILD) + '</p>' +
       '</main>';
 
     bindInstallCard();

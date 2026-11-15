@@ -114,6 +114,7 @@ If you ever lose the secret: in Apps Script, run `resetAdmin('9876543210')` and 
 | Join a group | Enter the 4-digit code on the groups screen |
 | Work offline | Everything; the pill shows `Offline · N pending` |
 | Force sync | Tap the sync pill |
+| Check the running build | The **Build** label at the bottom of the login or groups screen |
 
 Editing an expense that was split equally reopens it in **Equally** mode, so changing the total rebalances it. An exact split reopens in **Exact** mode with its original amounts.
 
@@ -122,8 +123,9 @@ Sync runs on open, after each change, every 15 seconds while the tab is visible,
 ## Releasing an update
 
 1. Change the files.
-2. Bump `CACHE` in `sw.js`, for example `trip-split-v5` → `trip-split-v6`.
-3. Push. The service worker updates, and open apps show **A new version of Trip Split is ready** with **Update** and **Later**.
+2. Bump `CACHE` in `sw.js`, for example `trip-split-v6` → `trip-split-v7`.
+3. Update `BUILD` in `app.js` to the same value (`v6` → `v7`). It is shown at the bottom of the login and groups screens.
+4. Push. The service worker updates, and open apps show **A new version of Trip Split is ready** with **Update** and **Later**.
 
 **Update** swaps in the new build and reloads once. **Later** keeps the prompt hidden until the app is reopened. The prompt is checked on launch, every minute while visible, and when the app returns to the foreground.
 
@@ -194,7 +196,7 @@ backend/appsscript.json Apps Script manifest
 
 **Changes not appearing on another phone** — tap the sync pill, or wait 15 seconds. Check the pill says `Synced`.
 
-**App still shows an old build after a deploy** — open apps prompt **A new version of Trip Split is ready**; tap **Update**. If no prompt appears, the release did not bump `CACHE` in `sw.js`, or the app is still on a build from before the prompt existed — fully close and reopen it once.
+**App still shows an old build after a deploy** — check the **Build** label at the bottom of the login or groups screen against the latest `CACHE` version. If it is older, tap **Update** when prompted. If no prompt appears, the release did not bump `CACHE` in `sw.js` and `BUILD` in `app.js`, or the app is still on a build from before the prompt existed — fully close and reopen it once.
 
 **Expenses show as "Undated"** — an older backend stored the `date` column as a Sheets date value. Deploy the latest `Code.gs` (**Manage deployments → Edit → New version**), then run `fixDates()` once in the Apps Script editor. New entries are written as `YYYY-MM-DD` text and read back in IST.
 
