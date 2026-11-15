@@ -35,6 +35,9 @@
     }
   };
 
+  /* Shown at the top of the login screen and in the groups header. Keep in sync with CACHE in sw.js. */
+  var BUILD = 'v6';
+
   var state = {
     user: LS.get('ts_user', null),
     groups: LS.get('ts_groups', []),
@@ -316,6 +319,7 @@
       '<div class="auth">' +
         '<div class="logo">₹</div>' +
         '<h1>Trip Split</h1>' +
+        '<div class="build-tag">Build ' + esc(BUILD) + '</div>' +
         '<p class="muted">Enter the mobile number your admin added.</p>' +
         '<form id="loginForm" class="stack">' +
           '<label class="muted small" for="phone">Mobile number</label>' +
@@ -368,7 +372,7 @@
 
     app.innerHTML =
       '<header class="top">' +
-        '<div class="grow"><div class="muted small">Signed in as</div>' +
+        '<div class="grow"><div class="muted small">Signed in as · Build ' + esc(BUILD) + '</div>' +
         '<div class="title">' + esc(state.user.name) + '</div></div>' +
         '<button class="ghost" id="logout">Log out</button>' +
       '</header>' +
@@ -1194,7 +1198,6 @@
 
   var INSTALL_KEY = 'ts_install_dismissed';
   var INSTALL_DAYS = 30;
-  var deferredInstall = null;
 
   function isStandalone() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
@@ -1218,6 +1221,7 @@
     return /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua) ? 'ios-other' : 'ios-safari';
   }
 
+  /* Android and desktop browsers show their own install prompt. Only iPhone needs guidance. */
   function installCardHtml() {
     if (isStandalone() || installDismissed()) return '';
 
@@ -1238,16 +1242,6 @@
         '<button class="secondary sm" id="installDismiss">Got it</button>' +
       '</div>';
     }
-    if (deferredInstall) {
-      return '<div class="card install-card" id="installCard">' +
-        '<div class="row-title">Install Trip Split</div>' +
-        '<p class="muted small">Add it to your home screen for full-screen, offline access.</p>' +
-        '<div class="actions">' +
-          '<button class="primary sm" id="installNow">Install</button>' +
-          '<button class="ghost sm" id="installDismiss">Not now</button>' +
-        '</div>' +
-      '</div>';
-    }
     return '';
   }
 
@@ -1260,43 +1254,6 @@
   function bindInstallCard() {
     var dismiss = document.getElementById('installDismiss');
     if (dismiss) dismiss.onclick = dismissInstall;
-
-    var install = document.getElementById('installNow');
-    if (install) install.onclick = function () {
-      if (!deferredInstall) return;
-      var prompt = deferredInstall;
-      deferredInstall = null;
-      install.disabled = true;
-      prompt.prompt();
-      prompt.userChoice.then(function (choice) {
-        if (choice && choice.outcome === 'accepted') dismissInstall();
-        else {
-          var card = document.getElementById('installCard');
-          if (card && card.parentNode) card.parentNode.removeChild(card);
-        }
-      }).catch(function () {});
-    };
-  }
-
-  function showInstallCard() {
-    var html = installCardHtml();
-    if (!html || document.getElementById('installCard')) return;
-    var host = $('#installSlot');
-    if (!host) return;
-    host.innerHTML = html;
-    bindInstallCard();
-  }
-
-  function initInstallPrompt() {
-    window.addEventListener('beforeinstallprompt', function (event) {
-      event.preventDefault();
-      deferredInstall = event;
-      showInstallCard();
-    });
-    window.addEventListener('appinstalled', function () {
-      deferredInstall = null;
-      dismissInstall();
-    });
   }
 
   /* ---------- misc ---------- */
@@ -1346,7 +1303,6 @@
     }
   }, 15000);
 
-  initInstallPrompt();
   initAutoUpdate();
   route();
 })();

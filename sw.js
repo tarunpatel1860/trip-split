@@ -1,5 +1,6 @@
 /* Tiny offline shell. Network-first so deploys show up; cache is the fallback. */
-var CACHE = 'trip-split-v5';
+/* Bump CACHE on every deploy. It is what triggers the in-app update prompt. */
+var CACHE = 'trip-split-v6';
 var SHELL = [
   './',
   './index.html',
