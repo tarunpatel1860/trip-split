@@ -441,6 +441,37 @@ button:disabled { opacity: .55; cursor: default; }
   z-index: 50;
   box-shadow: 0 8px 30px rgba(0, 0, 0, .18);
 }
+body.update-open .toast { bottom: calc(158px + env(safe-area-inset-bottom)); }
+
+/* update prompt */
+
+.update-bar {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+  font-size: .88rem;
+  color: var(--text);
+}
+.update-bar[hidden] { display: none; }
+.update-bar .grow { line-height: 1.3; }
+.update-bar button { white-space: nowrap; }
+
+/* install prompt */
+
+.install-card { text-align: left; }
+.install-card p { margin-bottom: 10px; }
+.install-card .actions { margin-top: 10px; }
+.install-card .actions button { flex: 0 0 auto; }
 
 /* admin */
 

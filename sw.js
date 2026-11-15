@@ -1,5 +1,5 @@
 /* Tiny offline shell. Network-first so deploys show up; cache is the fallback. */
-var CACHE = 'trip-split-v4';
+var CACHE = 'trip-split-v5';
 var SHELL = [
   './',
   './index.html',
@@ -9,6 +9,9 @@ var SHELL = [
   './style.css',
   './manifest.webmanifest',
   './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './apple-touch-icon.png',
   './admin/index.html',
   './admin/admin.js'
 ];
@@ -17,17 +20,20 @@ self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(CACHE).then(function (cache) {
       return cache.addAll(SHELL);
-    }).then(function () {
-      return self.skipWaiting();
     })
   );
+});
+
+/* The page asks us to take over when the user taps "Update". */
+self.addEventListener('message', function (event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
     caches.keys().then(function (keys) {
       return Promise.all(keys.filter(function (key) {
-        return key !== CACHE;
+        return key !== CACHE && key.indexOf('trip-split-') === 0;
       }).map(function (key) {
         return caches.delete(key);
       }));
@@ -48,7 +54,7 @@ self.addEventListener('fetch', function (event) {
   var isAdmin = /\/admin(\/|$)/.test(url.pathname);
 
   event.respondWith(
-    fetch(request).then(function (response) {
+    fetch(request, { cache: 'no-cache' }).then(function (response) {
       if (response && response.ok) {
         var copy = response.clone();
         caches.open(CACHE).then(function (cache) { cache.put(request, copy); });

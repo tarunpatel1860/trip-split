@@ -323,8 +323,11 @@
           '<button class="primary" type="submit">Login</button>' +
           (message ? '<p class="err">' + esc(message) + '</p>' : '') +
         '</form>' +
+        '<div id="installSlot">' + installCardHtml() + '</div>' +
         '<p class="muted small center">Admin? <a href="admin/">Open admin</a></p>' +
       '</div>';
+
+    bindInstallCard();
 
     var form = $('#loginForm');
     form.onsubmit = function (event) {
@@ -379,8 +382,11 @@
           '<button class="primary" type="submit">Join</button>' +
         '</form>' +
         (message ? '<p class="err">' + esc(message) + '</p>' : '') +
+        '<div id="installSlot">' + installCardHtml() + '</div>' +
         '<p class="muted small center mt">Phone ' + esc(state.user.phone) + '</p>' +
       '</main>';
+
+    bindInstallCard();
 
     $('#logout').onclick = logout;
 
@@ -1104,6 +1110,195 @@
     };
   }
 
+  /* ---------- updates ---------- */
+
+  function initAutoUpdate() {
+    if (!('serviceWorker' in navigator)) return;
+
+    var bar = document.getElementById('updateBar');
+    var updateBtn = document.getElementById('updateNow');
+    var laterBtn = document.getElementById('updateLater');
+    var waiting = null;
+    var reloading = false;
+    var dismissed = false;
+
+    function showBar(worker) {
+      if (!bar || !worker || dismissed) return;
+      waiting = worker;
+      bar.hidden = false;
+      document.body.classList.add('update-open');
+    }
+
+    function hideBar() {
+      waiting = null;
+      if (!bar) return;
+      bar.hidden = true;
+      document.body.classList.remove('update-open');
+    }
+
+    function watch(worker) {
+      if (!worker) return;
+      function checkState() {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) showBar(worker);
+      }
+      checkState();
+      worker.addEventListener('statechange', checkState);
+    }
+
+    function check(registration) {
+      if (document.visibilityState !== 'visible') return;
+      registration.update().catch(function () {});
+    }
+
+    if (bar && updateBtn) {
+      updateBtn.onclick = function () {
+        updateBtn.disabled = true;
+        updateBtn.textContent = 'Updating…';
+        reloading = true;
+        if (waiting) waiting.postMessage({ type: 'SKIP_WAITING' });
+        else location.reload();
+        /* Safety net in case the worker takes too long to activate. */
+        setTimeout(function () { location.reload(); }, 3000);
+      };
+      if (laterBtn) {
+        laterBtn.onclick = function () {
+          dismissed = true;
+          hideBar();
+        };
+      }
+    }
+
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (reloading) location.reload();
+    });
+
+    navigator.serviceWorker.ready.then(function (registration) {
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        showBar(registration.waiting);
+      }
+      watch(registration.installing);
+      registration.addEventListener('updatefound', function () {
+        watch(registration.installing);
+      });
+
+      check(registration);
+      setInterval(function () { check(registration); }, 60000);
+      window.addEventListener('online', function () { check(registration); });
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') check(registration);
+      });
+    }).catch(function () {});
+  }
+
+  /* ---------- install ---------- */
+
+  var INSTALL_KEY = 'ts_install_dismissed';
+  var INSTALL_DAYS = 30;
+  var deferredInstall = null;
+
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+      navigator.standalone === true;
+  }
+
+  function installDismissed() {
+    try {
+      var at = Number(localStorage.getItem(INSTALL_KEY) || 0);
+      return !!at && Date.now() - at < INSTALL_DAYS * 24 * 60 * 60 * 1000;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function iosPlatform() {
+    var ua = navigator.userAgent;
+    var ios = /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!ios) return '';
+    return /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua) ? 'ios-other' : 'ios-safari';
+  }
+
+  function installCardHtml() {
+    if (isStandalone() || installDismissed()) return '';
+
+    var ios = iosPlatform();
+    if (ios === 'ios-safari') {
+      return '<div class="card install-card" id="installCard">' +
+        '<div class="row-title">Install on your iPhone</div>' +
+        '<p class="muted small">Tap the <strong>Share</strong> button (square with an arrow) in Safari, ' +
+          'then choose <strong>Add to Home Screen</strong>.</p>' +
+        '<button class="secondary sm" id="installDismiss">Got it</button>' +
+      '</div>';
+    }
+    if (ios === 'ios-other') {
+      return '<div class="card install-card" id="installCard">' +
+        '<div class="row-title">Install on your iPhone</div>' +
+        '<p class="muted small">Open this page in <strong>Safari</strong>, then tap Share → ' +
+          '<strong>Add to Home Screen</strong>. iPhone browsers other than Safari cannot install web apps.</p>' +
+        '<button class="secondary sm" id="installDismiss">Got it</button>' +
+      '</div>';
+    }
+    if (deferredInstall) {
+      return '<div class="card install-card" id="installCard">' +
+        '<div class="row-title">Install Trip Split</div>' +
+        '<p class="muted small">Add it to your home screen for full-screen, offline access.</p>' +
+        '<div class="actions">' +
+          '<button class="primary sm" id="installNow">Install</button>' +
+          '<button class="ghost sm" id="installDismiss">Not now</button>' +
+        '</div>' +
+      '</div>';
+    }
+    return '';
+  }
+
+  function dismissInstall() {
+    try { localStorage.setItem(INSTALL_KEY, String(Date.now())); } catch (e) { /* quota */ }
+    var card = document.getElementById('installCard');
+    if (card && card.parentNode) card.parentNode.removeChild(card);
+  }
+
+  function bindInstallCard() {
+    var dismiss = document.getElementById('installDismiss');
+    if (dismiss) dismiss.onclick = dismissInstall;
+
+    var install = document.getElementById('installNow');
+    if (install) install.onclick = function () {
+      if (!deferredInstall) return;
+      var prompt = deferredInstall;
+      deferredInstall = null;
+      install.disabled = true;
+      prompt.prompt();
+      prompt.userChoice.then(function (choice) {
+        if (choice && choice.outcome === 'accepted') dismissInstall();
+        else {
+          var card = document.getElementById('installCard');
+          if (card && card.parentNode) card.parentNode.removeChild(card);
+        }
+      }).catch(function () {});
+    };
+  }
+
+  function showInstallCard() {
+    var html = installCardHtml();
+    if (!html || document.getElementById('installCard')) return;
+    var host = $('#installSlot');
+    if (!host) return;
+    host.innerHTML = html;
+    bindInstallCard();
+  }
+
+  function initInstallPrompt() {
+    window.addEventListener('beforeinstallprompt', function (event) {
+      event.preventDefault();
+      deferredInstall = event;
+      showInstallCard();
+    });
+    window.addEventListener('appinstalled', function () {
+      deferredInstall = null;
+      dismissInstall();
+    });
+  }
+
   /* ---------- misc ---------- */
 
   function logout() {
@@ -1151,5 +1346,7 @@
     }
   }, 15000);
 
+  initInstallPrompt();
+  initAutoUpdate();
   route();
 })();
